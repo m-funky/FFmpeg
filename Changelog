@@ -1,6 +1,8 @@
 Entries are sorted chronologically from oldest to youngest within each release,
 releases are sorted from youngest to oldest.
 
+version <next>:
+- MediaCodec H264 decoding
 
 version 3.0.2:
 - avcodec/ttaenc: Reallocate packet if its too small
@@ -62,7 +64,6 @@ version 3.0.1:
 - aacenc: optimize encoding speed
 - avcodec/diracdec: check bitstream size related fields for overflows
 - avcodec/h264_slice: Check PPS more extensively when its not copied
-
 
 version 3.0:
 - Common Encryption (CENC) MP4 encoding and decoding support
