@@ -2,7 +2,7 @@ NDK_ROOT=$HOME/Library/Android/sdk/ndk-bundle
 SYSROOT=$NDK_ROOT/platforms/android-19/arch-arm/
 TOOLCHAIN=$NDK_ROOT/toolchains/arm-linux-androideabi-4.9/prebuilt/darwin-x86_64
 CPU=arm
-PREFIX=$(pwd)/android/$CPU
+PREFIX=$(pwd)/android/debug/$CPU
 ADDI_CFLAGS="-marm"
 
 ./configure \
@@ -12,6 +12,8 @@ ADDI_CFLAGS="-marm"
   --arch=arm \
   --cpu=armv7-a \
   --disable-static \
+  --enable-debug=3 \
+  --disable-stripping \
   --enable-shared \
   --disable-doc \
   --disable-ffmpeg \
@@ -24,7 +26,7 @@ ADDI_CFLAGS="-marm"
   --enable-cross-compile \
   --enable-libopenh264 \
   --pkg-config=$(which pkg-config) \
-  --extra-cflags="-Os -fpic $ADDI_CFLAGS" \
+  --extra-cflags="-Os -fpic -mfloat-abi=softfp $ADDI_CFLAGS" \
   --extra-ldflags="$ADDI_LDFLAGS" \
   $ADDITIONAL_CONFIGURE_FLAG
 
