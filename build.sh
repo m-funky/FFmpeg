@@ -16,7 +16,6 @@ ADDI_CFLAGS="-marm"
   --disable-stripping \
   --enable-shared \
   --disable-doc \
-  --disable-ffmpeg \
   --disable-ffplay \
   --disable-ffprobe \
   --disable-ffserver \
