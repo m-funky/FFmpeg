@@ -24,6 +24,8 @@
 
 #include <stdint.h>
 
+#include <setjmp.h>
+
 #include "config.h"
 #include "libavcodec/avcodec.h"
 #include "libavfilter/avfilter.h"
@@ -586,5 +588,7 @@ void *grow_array(void *array, int elem_size, int *size, int new_size);
     av_get_channel_layout_string(name, sizeof(name), 0, ch_layout);
 
 double get_rotation(AVStream *st);
+
+jmp_buf global_ffmpeg_exit;
 
 #endif /* CMDUTILS_H */

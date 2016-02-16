@@ -4262,7 +4262,7 @@ static void log_callback_null(void *ptr, int level, const char *fmt, va_list vl)
 {
 }
 
-int main(int argc, char **argv)
+int ffmpeg_command(int argc, char **argv)
 {
     int ret;
     int64_t ti;
@@ -4328,5 +4328,23 @@ int main(int argc, char **argv)
         exit_program(69);
 
     exit_program(received_nb_signals ? 255 : main_return_code);
+
     return main_return_code;
+}
+
+int execute_ffmpeg(int argc, char **argv)
+{
+
+  int exit_value = setjmp(global_ffmpeg_exit);
+  if (exit_value == 0) {
+    return ffmpeg_command(argc, argv);
+  } else {
+    return exit_value;
+  }
+}
+
+int main(int argc, char **argv)
+{
+  // dummy
+  return 0;
 }
