@@ -1,6 +1,6 @@
 NDK_ROOT=$HOME/Library/Android/sdk/ndk-bundle
 SYSROOT=$NDK_ROOT/platforms/android-19/arch-x86/
-TOOLCHAIN=$NDK_ROOT/toolchains/x86-4.8/prebuilt/darwin-x86_64
+TOOLCHAIN=$NDK_ROOT/toolchains/x86-4.9/prebuilt/darwin-x86_64
 CPU=x86
 PREFIX=$(pwd)/android/debug/$CPU
 ADDI_CFLAGS='-march=i686'
@@ -26,6 +26,6 @@ ADDI_CFLAGS='-march=i686'
   --enable-cross-compile \
   --enable-libopenh264 \
   --pkg-config=$(which pkg-config) \
-  --extra-cflags="-std=c99 -Os -Wall -fpic -pipe -DANDROID -DNDEBUG  -march=atom -msse3 -ffast-math -mfpmath=sse" \
-  --extra-ldflags="-lm -lz -Wl,--no-undefined -Wl,-z,noexecstack" \
+  --extra-cflags="-Os -fpic" \
+  --extra-ldflags="" \
   $ADDITIONAL_CONFIGURE_FLAG
