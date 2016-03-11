@@ -25,6 +25,7 @@ ADDI_CFLAGS='-march=i686'
   --sysroot="$SYSROOT" \
   --enable-cross-compile \
   --enable-libopenh264 \
+  --enable-libfreetype \
   --pkg-config=$(which pkg-config) \
   --extra-cflags="-Os -fpic" \
   --extra-ldflags="" \

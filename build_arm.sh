@@ -24,6 +24,7 @@ ADDI_CFLAGS="-marm"
   --sysroot="$SYSROOT" \
   --enable-cross-compile \
   --enable-libopenh264 \
+  --enable-libfreetype \
   --pkg-config=$(which pkg-config) \
   --extra-cflags="-Os -fpic -mfloat-abi=softfp $ADDI_CFLAGS" \
   --extra-ldflags="$ADDI_LDFLAGS" \
