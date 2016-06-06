@@ -50,12 +50,12 @@ mkdir -p $(pwd)/output/android/debug/arm/include
 
 mv libffmpeg.so $(pwd)/output/android/debug/arm/libs/.
 
-cp libavcodec/libavcodec-*.so $(pwd)/output/android/debug/arm/libs/.
-cp libavfilter/libavfilter-*.so $(pwd)/output/android/debug/arm/libs/.
-cp libavformat/libavformat-*.so $(pwd)/output/android/debug/arm/libs/.
-cp libavutil/libavutil-*.so $(pwd)/output/android/debug/arm/libs/.
-cp libswresample/libswresample-*.so $(pwd)/output/android/debug/arm/libs/.
-cp libswscale/libswscale-*.so $(pwd)/output/android/debug/arm/libs/.
+cp libavcodec/libavcodec-*.so $(pwd)/output/android/debug/arm/libs/libavcodec.so
+cp libavfilter/libavfilter-*.so $(pwd)/output/android/debug/arm/libs/libavfilter.so
+cp libavformat/libavformat-*.so $(pwd)/output/android/debug/arm/libs/libavformat.so
+cp libavutil/libavutil-*.so $(pwd)/output/android/debug/arm/libs/libavutil.so
+cp libswresample/libswresample-*.so $(pwd)/output/android/debug/arm/libs/libswresample.so
+cp libswscale/libswscale-*.so $(pwd)/output/android/debug/arm/libs/libswscale.so
 
 cp ffmpeg.h $(pwd)/output/android/debug/arm/include/.
 cp cmdutils.h $(pwd)/output/android/debug/arm/include/.
