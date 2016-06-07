@@ -113,6 +113,8 @@ int stdin_interaction = 1;
 int frame_bits_per_raw_sample = 0;
 float max_error_rate  = 2.0/3;
 
+int do_mediacodec  = 0;
+
 
 static int intra_only         = 0;
 static int file_overwrite     = 0;
@@ -614,7 +616,7 @@ static AVCodec *choose_decoder(OptionsContext *o, AVFormatContext *s, AVStream *
 {
     char *codec_name = NULL;
 
-    if (st->codec->codec_id == AV_CODEC_ID_H264) {
+    if (do_mediacodec && st->codec->codec_id == AV_CODEC_ID_H264) {
       codec_name = "h264_mediacodec";
     }
 
@@ -3461,6 +3463,8 @@ const OptionDef options[] = {
         "force data codec ('copy' to copy stream)", "codec" },
     { "dn", OPT_BOOL | OPT_VIDEO | OPT_OFFSET | OPT_INPUT | OPT_OUTPUT, { .off = OFFSET(data_disable) },
         "disable data" },
+    { "mediacodec",      OPT_BOOL | OPT_EXPERT,                       { &do_mediacodec },
+        "use mediacodec in android" },
 
     { NULL, },
 };
