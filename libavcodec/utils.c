@@ -2599,14 +2599,6 @@ static AVCodec *find_encdec(enum AVCodecID id, int encoder)
             p->id == id) {
             av_log(NULL, AV_LOG_VERBOSE, "Suggested decoder name:(%s) code id:(%d).\n",
                 p->name, id);
-            if (id == AV_CODEC_ID_H264 && !encoder) {
-              if (!strcmp(p->name, "h264_mediacodec")) {
-                return p;
-              } else {
-                p = p->next;
-                continue;
-              }
-            }
             if (p->capabilities & AV_CODEC_CAP_EXPERIMENTAL && !experimental) {
                 experimental = p;
             } else
