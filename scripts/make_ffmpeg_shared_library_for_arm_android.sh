@@ -8,7 +8,6 @@ TOOLCHAIN=$NDK_ROOT/toolchains/arm-linux-androideabi-4.9/prebuilt/darwin-x86_64
 rm $(pwd)/output/android/debug/arm/include/*
 rm $(pwd)/output/android/debug/arm/libs/*
 
-make clean
 make -j8
 
 $TOOLCHAIN/bin/arm-linux-androideabi-gcc \
@@ -48,7 +47,7 @@ $TOOLCHAIN/bin/arm-linux-androideabi-gcc \
 mkdir -p $(pwd)/output/android/debug/arm/libs
 mkdir -p $(pwd)/output/android/debug/arm/include
 
-mv libffmpeg.so $(pwd)/output/android/debug/arm/libs/.
+cp libffmpeg.so $(pwd)/output/android/debug/arm/libs/.
 
 cp libavcodec/libavcodec-*.so $(pwd)/output/android/debug/arm/libs/libavcodec.so
 cp libavfilter/libavfilter-*.so $(pwd)/output/android/debug/arm/libs/libavfilter.so
