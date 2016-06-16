@@ -2156,6 +2156,19 @@ static int decode_video(InputStream *ist, AVPacket *pkt, int *got_output)
         ist->resample_height  = decoded_frame->height;
         ist->resample_pix_fmt = decoded_frame->format;
 
+        // hack for mediacodec
+        if (do_mediacodec && ist->st->codec->codec_id == AV_CODEC_ID_H264) {
+          for (i = 0; i < nb_input_streams; i++) {
+            if (input_streams[i] && input_streams[i]->st->codec->codec_id == AV_CODEC_ID_H264) {
+              av_log(NULL, AV_LOG_DEBUG, "Change decoder(%d) codec pixfmt(%s) from (%s).\n",
+                  i, av_get_pix_fmt_name(decoded_frame->format), 
+                  av_get_pix_fmt_name(input_streams[i]->resample_pix_fmt));
+              input_streams[i]->resample_pix_fmt = decoded_frame->format;
+            }
+          }
+
+        }
+
         for (i = 0; i < nb_filtergraphs; i++) {
             if (ist_in_filtergraph(filtergraphs[i], ist) && ist->reinit_filters &&
                 configure_filtergraph(filtergraphs[i]) < 0) {
