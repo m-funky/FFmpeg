@@ -33,7 +33,7 @@
 
 #include "mediacodec_sw_buffer.h"
 #include "mediacodec_wrapper.h"
-#include "mediacodecdec.h"
+#include "mediacodecenc.h"
 
 #define INPUT_DEQUEUE_TIMEOUT_US 8000
 #define OUTPUT_DEQUEUE_TIMEOUT_US 8000
@@ -71,7 +71,45 @@ static const struct {
 int ff_mediacodec_enc_init(AVCodecContext *avctx, MediaCodecEncContext *s,
                            const char *mime, FFAMediaFormat *format)
 {
-    return 0;
+    int ret = 0;
+    int status = 0;
+
+    s->codec = ff_AMediaCodec_createEncoderByType(mime);
+    if (!s->codec) {
+        av_log(avctx, AV_LOG_ERROR, "Failed to create media encoder for type %s\n", mime);
+        ret = AVERROR_EXTERNAL;
+        goto fail;
+    }
+
+    status = ff_AMediaCodec_configure(s->codec, format, NULL, NULL, 1);
+    if (status < 0) {
+        char *desc = ff_AMediaFormat_toString(format);
+        av_log(avctx, AV_LOG_ERROR,
+            "Failed to configure codec (status = %d) with format %s\n",
+            status, desc);
+        av_freep(&desc);
+
+        ret = AVERROR_EXTERNAL;
+        goto fail;
+    }
+
+    status = ff_AMediaCodec_start(s->codec);
+    if (status < 0) {
+        char *desc = ff_AMediaFormat_toString(format);
+        av_log(avctx, AV_LOG_ERROR,
+            "Failed to start codec (status = %d) with format %s\n",
+            status, desc);
+        av_freep(&desc);
+        ret = AVERROR_EXTERNAL;
+        goto fail;
+    }
+
+    av_log(avctx, AV_LOG_DEBUG, "MediaCodec encoder %p started successfully\n", s->codec);
+
+fail:
+    av_log(avctx, AV_LOG_ERROR, "MediaCodec encoder %p failed to start\n", s->codec);
+    ff_mediacodec_enc_close(avctx, s);
+    return ret;
 }
 
 int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
@@ -81,12 +119,12 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
     return 0;
 }
 
-int ff_mediacodec_enc_flush(AVCodecContext *avctx, MediaCodecEncContext *s)
-{
-    return 0;
-}
-
 int ff_mediacodec_enc_close(AVCodecContext *avctx, MediaCodecEncContext *s)
 {
+    if (s->codec) {
+        ff_AMediaCodec_delete(s->codec);
+        s->codec = NULL;
+    }
+
     return 0;
 }

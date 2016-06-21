@@ -203,7 +203,7 @@ static av_cold int mediacodec_decode_init(AVCodecContext *avctx)
         goto done;
     }
 
-    av_log(avctx, AV_LOG_INFO, "MediaCodec started successfully, ret = %d\n", ret);
+    av_log(avctx, AV_LOG_INFO, "MediaCodec decoder started successfully, ret = %d\n", ret);
 
     s->fifo = av_fifo_alloc(sizeof(AVPacket));
     if (!s->fifo) {

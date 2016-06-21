@@ -31,6 +31,9 @@
 #include "mediacodec_wrapper.h"
 
 typedef struct MediaCodecEncContext {
+
+    FFAMediaCodec *codec;
+
 } MediaCodecEncContext;
 
 int ff_mediacodec_enc_init(AVCodecContext *avctx,
@@ -43,9 +46,6 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx,
                              AVFrame *frame,
                              int *got_frame,
                              AVPacket *pkt);
-
-int ff_mediacodec_enc_flush(AVCodecContext *avctx,
-                            MediaCodecEncContext *s);
 
 int ff_mediacodec_enc_close(AVCodecContext *avctx,
                             MediaCodecEncContext *s);

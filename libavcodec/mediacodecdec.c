@@ -364,7 +364,7 @@ int ff_mediacodec_dec_init(AVCodecContext *avctx, MediaCodecDecContext *s,
         }
     }
 
-    av_log(avctx, AV_LOG_DEBUG, "MediaCodec %p started successfully\n", s->codec);
+    av_log(avctx, AV_LOG_DEBUG, "MediaCodec decoder %p started successfully\n", s->codec);
 
     return 0;
 
