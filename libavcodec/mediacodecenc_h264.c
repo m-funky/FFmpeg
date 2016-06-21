@@ -1,5 +1,5 @@
 /*
- * Android MediaCodec H.264 decoder
+ * Android MediaCodec H.264 encoder
  *
  * This file is part of FFmpeg.
  *
@@ -20,7 +20,7 @@
 
 #include "avcodec.h"
 #include "internal.h"
-#include "mediacodecdec.h"
+#include "mediacodecenc.h"
 #include "mediacodec_wrapper.h"
 
 typedef struct MediaCodecH264EncContext {
