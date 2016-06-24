@@ -29,6 +29,7 @@
 #include "libavutil/intreadwrite.h"
 #include "libavutil/pixfmt.h"
 #include "libavutil/atomic.h"
+#include "libavutil/pixdesc.h"
 
 #include "avcodec.h"
 #include "internal.h"
@@ -240,6 +241,12 @@ static int mediacodec_process_data(AVCodecContext *avctx, AVFrame *frame,
 static int mediacodec_decode_frame(AVCodecContext *avctx, void *data,
                                    int *got_frame, AVPacket *avpkt)
 {
+
+    av_log(avctx, AV_LOG_DEBUG,
+            "[d][log][P] format=%s size=%d pts=%"PRIi64" data=%"PRIu8" ..\n" ,
+            av_get_pix_fmt_name(avctx->pix_fmt),
+            avpkt->size, avpkt->pts, avpkt->data);
+
     MediaCodecH264DecContext *s = avctx->priv_data;
     AVFrame *frame    = data;
     int ret;
@@ -298,6 +305,10 @@ static int mediacodec_decode_frame(AVCodecContext *avctx, void *data,
         s->filtered_pkt.size -= ret;
         s->filtered_pkt.data += ret;
     }
+    av_log(avctx, AV_LOG_DEBUG,
+            "[d][log][F] format=%s linesizes=(%d,%d,%d) pts=%"PRId64" ..\n",
+            av_get_pix_fmt_name(avctx->pix_fmt),
+            frame->linesize[0], frame->linesize[1], frame->linesize[2], frame->pts);
 
     return avpkt->size;
 }

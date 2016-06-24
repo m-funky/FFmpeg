@@ -28,6 +28,7 @@
 #include "libavutil/internal.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/mathematics.h"
+#include "libavutil/pixdesc.h"
 
 #include "avcodec.h"
 #include "internal.h"
@@ -150,6 +151,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
     param.fMaxFrameRate              = 1/av_q2d(avctx->time_base);
+
     param.iPicWidth                  = avctx->width;
     param.iPicHeight                 = avctx->height;
     param.iTargetBitrate             = avctx->bit_rate;
@@ -247,6 +249,12 @@ fail:
 static int svc_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
                             const AVFrame *frame, int *got_packet)
 {
+
+    av_log(avctx, AV_LOG_DEBUG,
+        "[e][log][F] format=%s linesizes=(%d,%d,%d) pts=%"PRId64" ..\n",
+        av_get_pix_fmt_name(avctx->pix_fmt),
+        frame->linesize[0], frame->linesize[1], frame->linesize[2], frame->pts);
+
     SVCContext *s = avctx->priv_data;
     SFrameBSInfo fbi = { 0 };
     int i, ret;
@@ -301,6 +309,12 @@ static int svc_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
     if (fbi.eFrameType == videoFrameTypeIDR)
         avpkt->flags |= AV_PKT_FLAG_KEY;
     *got_packet = 1;
+
+    av_log(avctx, AV_LOG_DEBUG,
+        "[e][log][P] format=%s size=%d pts=%"PRId64" data=%"PRIu8" ..\n" ,
+        av_get_pix_fmt_name(avctx->pix_fmt),
+        avpkt->size, avpkt->pts, avpkt->data);
+
     return 0;
 }
 
