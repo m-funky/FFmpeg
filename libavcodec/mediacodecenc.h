@@ -33,6 +33,23 @@
 typedef struct MediaCodecEncContext {
 
     FFAMediaCodec *codec;
+    FFAMediaFormat *format;
+
+    int flushing;
+
+    int width;
+    int height;
+    int color_format;
+    enum AVPixelFormat pix_fmt;
+
+    int queued_buffer_nb;
+    int queued_buffer_max;
+    uint64_t dequeued_buffer_nb;
+
+    uint8_t *extradata;
+    int extradata_size;
+
+    int first_buffer;
 
 } MediaCodecEncContext;
 
@@ -43,9 +60,10 @@ int ff_mediacodec_enc_init(AVCodecContext *avctx,
 
 int ff_mediacodec_enc_encode(AVCodecContext *avctx,
                              MediaCodecEncContext *s,
+                             AVPacket *pkt,
                              AVFrame *frame,
-                             int *got_frame,
-                             AVPacket *pkt);
+                             int *got_packet,
+                             int frame_size);
 
 int ff_mediacodec_enc_close(AVCodecContext *avctx,
                             MediaCodecEncContext *s);

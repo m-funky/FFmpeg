@@ -19,6 +19,7 @@
  */
 
 #include "libavutil/fifo.h"
+#include "libavutil/pixdesc.h"
 
 #include "avcodec.h"
 #include "internal.h"
@@ -26,7 +27,10 @@
 #include "mediacodec_wrapper.h"
 
 #define CODEC_MIME "video/avc"
-#define COLOR_FORMAT 0x13 // YUV420Planar
+#define COLOR_FORMAT 0x15 // YUV420SemiPlanar // tmp
+
+static int frame_num = 0;
+static int packet_num = 0;
 
 typedef struct MediaCodecH264EncContext {
 
@@ -49,6 +53,9 @@ static av_cold int mediacodec_encode_close(AVCodecContext *avctx)
 
 static av_cold int mediacodec_encode_init(AVCodecContext *avctx)
 {
+    frame_num = 0;
+    packet_num = 0;
+
     int ret = 0;
 
     FFAMediaFormat *format = NULL;
@@ -68,11 +75,18 @@ static av_cold int mediacodec_encode_init(AVCodecContext *avctx)
     ff_AMediaFormat_setInt32(format, "color-format", COLOR_FORMAT);
     ff_AMediaFormat_setInt32(format, "bitrate", avctx->bit_rate);
     ff_AMediaFormat_setInt32(format, "frame-rate", 1 / av_q2d(avctx->time_base));
-    ff_AMediaFormat_setInt32(format, "i-frame-interval", 10); // temporary
+    ff_AMediaFormat_setInt32(format, "i-frame-interval", 12); // same as openh264 default.
 
     if ((ret = ff_mediacodec_enc_init(avctx, &s->ctx, CODEC_MIME, format)) < 0) {
         goto done;
     }
+
+    MediaCodecEncContext *ctx = &s->ctx;
+
+    ctx->width = avctx->width;
+    ctx->height = avctx->height;
+    ctx->color_format = COLOR_FORMAT;
+    ctx->pix_fmt = AV_PIX_FMT_NV12; // tmp
 
     av_log(avctx, AV_LOG_INFO, "MediaCodec encoder started successfully, ret = %d\n", ret);
 
@@ -96,6 +110,126 @@ done:
 static av_cold int mediacodec_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
     const AVFrame *frame, int *got_packet)
 {
+    frame_num++;
+
+    if (frame) {
+        int64_t pts_us = frame->pts * av_q2d(avctx->time_base) * 1000 * 1000;
+        av_log(avctx, AV_LOG_DEBUG,
+                "[e][log][F] %d format=%s key_frame=%d linesizes=(%d,%d,%d) pts=%"PRIi64" ..\n",
+                frame_num, av_get_pix_fmt_name(avctx->pix_fmt), frame->key_frame,
+                frame->linesize[0], frame->linesize[1], frame->linesize[2],
+                frame->pts);
+    } else {
+        av_log(avctx, AV_LOG_DEBUG,
+                "[e][log][F] %d format=%s ..\n",
+                frame_num, av_get_pix_fmt_name(avctx->pix_fmt));
+    }
+
+    MediaCodecH264EncContext *s = avctx->priv_data;
+    MediaCodecEncContext *ctx = &s->ctx;
+
+    int ret = 0;
+
+    // tmp for nv12
+
+    int frame_size = ctx->width * ctx->height + ctx->width * ctx->height / 2;
+    int offset = 0;
+
+    if (!frame) {
+        frame_size = 0;
+    }
+
+
+    /*
+    for (i = 0; i < 2; i++) {
+        int height;
+        int width;
+
+        if (i == 0) {
+            height = 640;
+            width = 640;
+        } else {
+            height = 640 / 2;
+            width = 640;
+        }
+
+        memcpy(avpkt->data + offset, frame->data[i], height * width);
+        av_log(avctx, AV_LOG_DEBUG,
+                "[e][log][M] format=%s size=%d pts=%"PRId64" src= %"PRIu8" dst=%"PRIu8" ..\n" ,
+                av_get_pix_fmt_name(avctx->pix_fmt),
+                height * width, frame->pts, frame->data[i], avpkt->data + offset);
+
+        offset += height * width;
+    }
+    */
+
+
+    if (av_fifo_space(s->fifo) < sizeof(frame_size)) {
+        ret = av_fifo_realloc2(s->fifo,
+                av_fifo_size(s->fifo) + sizeof(frame_size));
+        if (ret < 0) {
+            av_log(avctx, AV_LOG_ERROR, "Error getting fifo.\n");
+            return ret;
+        }
+    }
+
+    //av_fifo_generic_write(s->fifo, frame->data[0], 640 * 640, NULL);
+    //av_fifo_generic_write(s->fifo, frame->data[1], 640 * 640 / 2, NULL);
+
+    /*
+    av_log(avctx, AV_LOG_DEBUG,
+            "[e][log][B] format=%s fifo.size=%d fifo.space=%d pts=%"PRId64" ..\n" ,
+            av_get_pix_fmt_name(avctx->pix_fmt),
+            av_fifo_size(s->fifo), av_fifo_space(s->fifo), frame->pts);
+            */
+
+    /*
+    if ((ret = ff_alloc_packet2(avctx, avpkt, frame_size, frame_size))) {
+        av_log(avctx, AV_LOG_ERROR, "Error getting output packet\n");
+        return ret;
+    } else {
+        av_log(avctx, AV_LOG_DEBUG, "Success getting output packet\n");
+    }
+    */
+
+
+    //memcpy(avpkt->data, frame->data[0], 640 * 640);
+    //memcpy(avpkt->data + 640 * 640, frame->data[1], 640 * 640 / 2);
+
+    //av_fifo_generic_read(s->fifo, avpkt->data, frame_size, NULL);
+
+    while (!*got_packet) {
+        if (offset >= frame_size) {
+            if (frame_size == 0) {
+                ff_mediacodec_enc_encode(avctx, ctx, avpkt, frame, got_packet, 0);
+            }
+            return 0;
+        }
+
+        ret = ff_mediacodec_enc_encode(avctx, ctx, avpkt, frame, got_packet, frame_size);
+
+        if (ret < 0) {
+            av_log(avctx, AV_LOG_ERROR, "Failed to encode. \n");
+            return ret;
+        }
+
+        offset += ret;
+
+        /*
+        av_log(avctx, AV_LOG_DEBUG,
+                "[e][log][A] format=%s packet=%d pts=%"PRId64" size=%d ..\n",
+                av_get_pix_fmt_name(avctx->pix_fmt), *got_packet, frame->pts, offset);
+                */
+
+    }
+
+    packet_num++;
+
+    av_log(avctx, AV_LOG_DEBUG,
+            "[e][log][P] %d format=%s size=%d pts=%"PRId64" dts=%"PRId64" flags=%d ..\n" ,
+            packet_num, av_get_pix_fmt_name(avctx->pix_fmt),
+            avpkt->size, avpkt->pts, avpkt->dts, avpkt->flags);
+
     return 0;
 }
 
@@ -108,7 +242,8 @@ AVCodec ff_h264_mediacodec_encoder = {
     .init           = mediacodec_encode_init,
     .encode2        = mediacodec_encode_frame,
     .close          = mediacodec_encode_close,
-    .capabilities   = AV_CODEC_CAP_AUTO_THREADS,
+    .capabilities   = CODEC_CAP_DELAY,
     .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_YUV420P,
+                                                    AV_PIX_FMT_NV12,
                                                     AV_PIX_FMT_NONE },
 };

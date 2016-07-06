@@ -33,6 +33,9 @@
 #include "avcodec.h"
 #include "internal.h"
 
+static int frame_num = 0;
+static int packet_num = 0;
+
 typedef struct SVCContext {
     const AVClass *av_class;
     ISVCEncoder *encoder;
@@ -107,6 +110,9 @@ static av_cold int svc_encode_close(AVCodecContext *avctx)
 
 static av_cold int svc_encode_init(AVCodecContext *avctx)
 {
+    frame_num = 0;
+    packet_num = 0;
+
     SVCContext *s = avctx->priv_data;
     SEncParamExt param = { 0 };
     int err = AVERROR_UNKNOWN;
@@ -229,6 +235,19 @@ FF_ENABLE_DEPRECATION_WARNINGS
         }
         avctx->extradata_size = size;
         memcpy(avctx->extradata, fbi.sLayerInfo[0].pBsBuf, size);
+
+        // desc
+        av_log(avctx, AV_LOG_DEBUG, "[e][log][G] extradata size=%d ..\n", size);
+        av_log(avctx, AV_LOG_DEBUG, "[e][log][G] extradata ");
+        int j;
+        for (j = 0; j < size; j++) {
+            av_log(NULL, AV_LOG_DEBUG, "%d  ", avctx->extradata[j]);
+        }
+        av_log(avctx, AV_LOG_DEBUG, "[end]\n");
+        // desc
+
+    } else {
+        av_log(avctx, AV_LOG_DEBUG, "[e][log][G] No global header ..\n");
     }
 
     props = ff_add_cpb_side_data(avctx);
@@ -250,9 +269,11 @@ static int svc_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
                             const AVFrame *frame, int *got_packet)
 {
 
+    frame_num++;
+
     av_log(avctx, AV_LOG_DEBUG,
-        "[e][log][F] format=%s linesizes=(%d,%d,%d) pts=%"PRId64" ..\n",
-        av_get_pix_fmt_name(avctx->pix_fmt),
+        "[e][log][F] %d format=%s linesizes=(%d,%d,%d) pts=%"PRId64" ..\n",
+        frame_num, av_get_pix_fmt_name(avctx->pix_fmt),
         frame->linesize[0], frame->linesize[1], frame->linesize[2], frame->pts);
 
     SVCContext *s = avctx->priv_data;
@@ -310,10 +331,12 @@ static int svc_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
         avpkt->flags |= AV_PKT_FLAG_KEY;
     *got_packet = 1;
 
+    packet_num++;
+
     av_log(avctx, AV_LOG_DEBUG,
-        "[e][log][P] format=%s size=%d pts=%"PRId64" data=%"PRIu8" ..\n" ,
-        av_get_pix_fmt_name(avctx->pix_fmt),
-        avpkt->size, avpkt->pts, avpkt->data);
+        "[e][log][P] %d format=%s size=%d pts=%"PRId64" dts=%"PRId64" flags=%d ..\n",
+        packet_num, av_get_pix_fmt_name(avctx->pix_fmt),
+        avpkt->size, avpkt->pts, avpkt->dts, avpkt->flags);
 
     return 0;
 }
