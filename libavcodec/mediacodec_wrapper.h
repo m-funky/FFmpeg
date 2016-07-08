@@ -54,6 +54,7 @@
 
 int ff_AMediaCodecProfile_getProfileFromAVCodecContext(AVCodecContext *avctx);
 
+int32_t ff_AMediaCodecList_getColorFormatByType(const char *mime, void *log_ctx);
 char *ff_AMediaCodecList_getCodecNameByType(const char *mime, int profile, int encoder, void *log_ctx);
 
 struct FFAMediaFormat;

@@ -31,6 +31,11 @@
 #include "version.h"
 #include "mediacodec_wrapper.h"
 
+enum {
+    COLOR_FormatYUV420Planar                              = 0x13,
+    COLOR_FormatYUV420SemiPlanar                          = 0x15,
+};
+
 struct JNIAMediaCodecListFields {
 
     jclass mediacodec_list_class;
@@ -595,6 +600,168 @@ done:
     }
 
     return name;
+}
+
+int32_t ff_AMediaCodecList_getColorFormatByType(const char *mime, void *log_ctx)
+{
+    int ret;
+    int i;
+
+    int codec_count = 0;
+    char *supported_type = NULL;
+
+    int color_format = 0;
+    int* color_formats;
+    int color_count = 0;
+    int32_t found_color_format = 0;
+
+    int attached = 0;
+    JNIEnv *env = NULL;
+    struct JNIAMediaCodecListFields jfields = { 0 };
+    struct JNIAMediaFormatFields mediaformat_jfields = { 0 };
+
+    jobject info = NULL;
+    jobject type = NULL;
+    jobjectArray types = NULL;
+
+    jobject found_info = NULL;
+
+    jobject capabilities = NULL;
+    jintArray color_formats_array = NULL;
+
+    JNI_ATTACH_ENV_OR_RETURN(env, &attached, log_ctx, NULL);
+
+    if ((ret = ff_jni_init_jfields(env, &jfields, jni_amediacodeclist_mapping, 0, log_ctx)) < 0) {
+        goto done;
+    }
+
+    if ((ret = ff_jni_init_jfields(env, &mediaformat_jfields, jni_amediaformat_mapping, 0, log_ctx)) < 0) {
+        goto done;
+    }
+
+    // select MediaCodecInfo
+
+    codec_count = (*env)->CallStaticIntMethod(env, jfields.mediacodec_list_class, jfields.get_codec_count_id);
+    if (ff_jni_exception_check(env, 1, log_ctx) < 0) {
+        goto done;
+    }
+
+    for (i = 0; i < codec_count; i++) {
+        int j;
+        int type_count;
+        int is_encoder;
+
+        info = (*env)->CallStaticObjectMethod(env, jfields.mediacodec_list_class, jfields.get_codec_info_at_id, i);
+        if (ff_jni_exception_check(env, 1, log_ctx) < 0) {
+            goto done;
+        }
+
+        is_encoder = (*env)->CallBooleanMethod(env, info, jfields.is_encoder_id);
+        if (ff_jni_exception_check(env, 1, log_ctx) < 0) {
+            goto done;
+        }
+
+        if (!is_encoder) {
+            continue;
+        }
+
+        types = (*env)->CallObjectMethod(env, info, jfields.get_supported_types_id);
+        if (ff_jni_exception_check(env, 1, log_ctx) < 0) {
+            goto done;
+        }
+
+        type_count = (*env)->GetArrayLength(env, types);
+
+        for (j = 0; j < type_count; j++) {
+
+            type = (*env)->GetObjectArrayElement(env, types, j);
+            if (ff_jni_exception_check(env, 1, log_ctx) < 0) {
+                goto done;
+            }
+
+            supported_type = ff_jni_jstring_to_utf_chars(env, type, log_ctx);
+            if (!supported_type) {
+                goto done;
+            }
+
+            if (!av_strcasecmp(supported_type, mime)) {
+                found_info = info;
+                break;
+            }
+        }
+
+        if (found_info) {
+            break;
+        }
+    }
+
+    if (!found_info) {
+        goto done;
+    }
+
+    // select color format
+
+    capabilities = (*env)->CallObjectMethod(env, found_info, jfields.get_codec_capabilities_id, type);
+    if (ff_jni_exception_check(env, 1, log_ctx) < 0) {
+        goto done;
+    }
+
+    color_formats_array = (*env)->GetObjectField(env, capabilities, jfields.color_formats_id);
+    if (ff_jni_exception_check(env, 1, log_ctx) < 0) {
+        goto done;
+    }
+
+    color_count = (*env)->GetArrayLength(env, color_formats_array);
+    color_formats = (*env)->GetIntArrayElements(env, color_formats_array, NULL);
+    for (i = 0; i < color_count; i++) {
+
+        color_format = color_formats[i];
+        if (ff_jni_exception_check(env, 1, log_ctx) < 0) {
+            goto done;
+        }
+
+        switch(color_format) {
+        case COLOR_FormatYUV420Planar:
+        case COLOR_FormatYUV420SemiPlanar:
+            found_color_format = color_format;
+            break;
+        }
+
+        if (found_color_format) {
+            break;
+        }
+    }
+
+done:
+
+    if (info) {
+        (*env)->DeleteLocalRef(env, info);
+    }
+
+    if (type) {
+        (*env)->DeleteLocalRef(env, type);
+    }
+
+    if (types) {
+        (*env)->DeleteLocalRef(env, types);
+    }
+
+    if (capabilities) {
+        (*env)->DeleteLocalRef(env, capabilities);
+    }
+
+    if (color_formats_array) {
+        (*env)->DeleteLocalRef(env, color_formats_array);
+    }
+
+    av_freep(&supported_type);
+
+    ff_jni_reset_jfields(env, &jfields, jni_amediacodeclist_mapping, 0, log_ctx);
+    ff_jni_reset_jfields(env, &mediaformat_jfields, jni_amediaformat_mapping, 0, log_ctx);
+
+    JNI_DETACH_ENV(attached, log_ctx);
+
+    return found_color_format;
 }
 
 FFAMediaFormat *ff_AMediaFormat_new(void)

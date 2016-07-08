@@ -40,84 +40,11 @@
 #define INPUT_DEQUEUE_TIMEOUT_US 8000
 #define OUTPUT_DEQUEUE_TIMEOUT_US 8000
 
-enum {
-    COLOR_FormatYUV420Planar                              = 0x13,
-    COLOR_FormatYUV420SemiPlanar                          = 0x15,
-};
-
-static const struct {
-
-    enum AVPixelFormat pix_fmt;
-    int color_format;
-
-} color_formats[] = {
-
-    { AV_PIX_FMT_YUV420P, COLOR_FormatYUV420Planar},
-    { AV_PIX_FMT_NV12, COLOR_FormatYUV420SemiPlanar},
-    { 0 }
-};
-
-static int mcdec_map_pixel_format(AVCodecContext *avctx,
-        MediaCodecEncContext *s,
-        enum AVPixelFormat pix_fmt)
+int ff_mediacodec_select_color_format(AVCodecContext *avctx, const char *mime)
 {
-    int i;
-    int ret = 0;
-
-    for (i = 0; i < FF_ARRAY_ELEMS(color_formats); i++) {
-        if (color_formats[i].pix_fmt == pix_fmt) {
-            return color_formats[i].color_format;
-        }
-    }
-
-    av_log(avctx, AV_LOG_ERROR, "Output pix format 0x%x (value=%d) is not supported\n",
-        pix_fmt, pix_fmt);
-
-    return ret;
+    return ff_AMediaCodecList_getColorFormatByType(mime, NULL);
 }
 
-static int mediacodec_wrap_frame(AVCodecContext *avctx,
-                                  MediaCodecEncContext *s,
-                                  uint8_t *data,
-                                  size_t size,
-                                  ssize_t index,
-                                  AVFrame *frame)
-{
-    int ret = 0;
-    int status = 0;
-
-    /*
-    av_log(avctx, AV_LOG_DEBUG,
-            "Frame: width=%d height=%d pix_fmt=%s\n"
-            "source frame linesizes=%d,%d,%d.\n" ,
-            avctx->width, avctx->height, av_get_pix_fmt_name(avctx->pix_fmt),
-            frame->linesize[0], frame->linesize[1], frame->linesize[2]);
-            */
-
-    switch (s->color_format) {
-    case COLOR_FormatYUV420Planar:
-        ff_mediacodec_sw_frame_copy_yuv420_planar(avctx, s, data, &size, frame);
-        break;
-    case COLOR_FormatYUV420SemiPlanar:
-        ff_mediacodec_sw_frame_copy_yuv420_semi_planar(avctx, s, data, &size, frame);
-        break;
-    default:
-        av_log(avctx, AV_LOG_ERROR, "Unsupported color format 0x%x (value=%d)\n",
-            s->color_format, s->color_format);
-        ret = AVERROR(EINVAL);
-        goto done;
-    }
-
-    ret = 0;
-done:
-    status = ff_AMediaCodec_releaseOutputBuffer(s->codec, index, 0);
-    if (status < 0) {
-        av_log(avctx, AV_LOG_ERROR, "Failed to release output buffer\n");
-        ret = AVERROR_EXTERNAL;
-    }
-
-    return ret;
-}
 
 static int mediacodec_enc_parse_format(AVCodecContext *avctx, MediaCodecEncContext *s)
 {
@@ -233,9 +160,21 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
 
             //av_fifo_generic_read(s->fifo, data, size, NULL);
 
-            // nv12
-            memcpy(data, frame->data[0], s->width * s->height);
-            memcpy(data + s->width * s->height, frame->data[1], s->width * s->height / 2);
+            if (avctx->pix_fmt == AV_PIX_FMT_NV12) {
+                memcpy(data, frame->data[0], s->width * s->height);
+                memcpy(data + s->width * s->height, frame->data[1], s->width * s->height / 2);
+            } else if (avctx->pix_fmt == AV_PIX_FMT_YUV420P) {
+                memcpy(data, frame->data[0], s->width * s->height);
+                int i;
+                for (i = 0; i < s->width * s->height / 4; i++) {
+                    data[i * 2 + s->width * s->height] = frame->data[1][i];
+                    data[i * 2 + 1 + s->width * s->height] = frame->data[2][i];
+                }
+            } else {
+                av_log(avctx, AV_LOG_ERROR, "Not converted pix fmt (%s)\n",
+                        av_get_pix_fmt_name(avctx->pix_fmt));
+                return AVERROR_EXTERNAL;
+            }
 
             offset += size;
 

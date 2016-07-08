@@ -27,7 +27,6 @@
 #include "mediacodec_wrapper.h"
 
 #define CODEC_MIME "video/avc"
-#define COLOR_FORMAT 0x15 // YUV420SemiPlanar // tmp
 
 static int frame_num = 0;
 static int packet_num = 0;
@@ -60,6 +59,7 @@ static av_cold int mediacodec_encode_init(AVCodecContext *avctx)
 
     FFAMediaFormat *format = NULL;
     MediaCodecH264EncContext *s = avctx->priv_data;
+    MediaCodecEncContext *ctx = &s->ctx;
 
     format = ff_AMediaFormat_new();
     if (!format) {
@@ -68,25 +68,25 @@ static av_cold int mediacodec_encode_init(AVCodecContext *avctx)
         goto done;
     }
 
+    ctx->width = avctx->width;
+    ctx->height = avctx->height;
+    ctx->color_format = ff_mediacodec_select_color_format(avctx, CODEC_MIME);
+    ctx->pix_fmt = avctx->pix_fmt;
+    ctx->bit_rate = avctx->bit_rate;
+
+    av_log(avctx, AV_LOG_INFO, "MediaCodec encoder color format=%d  \n", ctx->color_format);
+
     ff_AMediaFormat_setString(format, "mime", CODEC_MIME);
-    ff_AMediaFormat_setInt32(format, "width", avctx->width);
-    ff_AMediaFormat_setInt32(format, "height", avctx->height);
-    // TODO get color foramt from avctx->pix_fmt
-    ff_AMediaFormat_setInt32(format, "color-format", COLOR_FORMAT);
-    ff_AMediaFormat_setInt32(format, "bitrate", avctx->bit_rate);
+    ff_AMediaFormat_setInt32(format, "width", ctx->width);
+    ff_AMediaFormat_setInt32(format, "height", ctx->height);
+    ff_AMediaFormat_setInt32(format, "color-format", ctx->color_format);
+    ff_AMediaFormat_setInt32(format, "bitrate", ctx->bit_rate);
     ff_AMediaFormat_setInt32(format, "frame-rate", 1 / av_q2d(avctx->time_base));
     ff_AMediaFormat_setInt32(format, "i-frame-interval", 12); // same as openh264 default.
 
     if ((ret = ff_mediacodec_enc_init(avctx, &s->ctx, CODEC_MIME, format)) < 0) {
         goto done;
     }
-
-    MediaCodecEncContext *ctx = &s->ctx;
-
-    ctx->width = avctx->width;
-    ctx->height = avctx->height;
-    ctx->color_format = COLOR_FORMAT;
-    ctx->pix_fmt = AV_PIX_FMT_NV12; // tmp
 
     av_log(avctx, AV_LOG_INFO, "MediaCodec encoder started successfully, ret = %d\n", ret);
 
@@ -243,7 +243,7 @@ AVCodec ff_h264_mediacodec_encoder = {
     .encode2        = mediacodec_encode_frame,
     .close          = mediacodec_encode_close,
     .capabilities   = CODEC_CAP_DELAY,
-    .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_YUV420P,
-                                                    AV_PIX_FMT_NV12,
+    .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_NV12,
+                                                    AV_PIX_FMT_YUV420P,
                                                     AV_PIX_FMT_NONE },
 };

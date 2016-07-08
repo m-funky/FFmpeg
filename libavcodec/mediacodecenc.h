@@ -41,6 +41,7 @@ typedef struct MediaCodecEncContext {
     int height;
     int color_format;
     enum AVPixelFormat pix_fmt;
+    int bit_rate;
 
     int queued_buffer_nb;
     int queued_buffer_max;
@@ -52,6 +53,8 @@ typedef struct MediaCodecEncContext {
     int first_buffer;
 
 } MediaCodecEncContext;
+
+int ff_mediacodec_select_color_format(AVCodecContext *avctx, const char *mime);
 
 int ff_mediacodec_enc_init(AVCodecContext *avctx,
                            MediaCodecEncContext *s,
