@@ -141,24 +141,9 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
             av_log(avctx, AV_LOG_ERROR, "[e]Failed to get input buffer\n");
             return AVERROR_EXTERNAL;
         }
-        /*
-        av_log(avctx, AV_LOG_DEBUG,
-                "[e][log][MC] format=%s size=%d index=%d pts=%"PRId64" data=%"PRIu8" ..\n" ,
-                av_get_pix_fmt_name(avctx->pix_fmt),
-                size, index, frame->pts, data);
-                */
 
-        // copy frame -> data(Java DirectByteBuffer)
-        /*
-        if ((ret = mediacodec_wrap_frame(avctx, s, data, &size, index, frame)) < 0) {
-            av_log(avctx, AV_LOG_ERROR, "Failed to wrap frame\n");
-            return ret;
-        }
-        */
         if (frame_size != 0) {
             size = FFMIN(frame_size - offset, size);
-
-            //av_fifo_generic_read(s->fifo, data, size, NULL);
 
             if (avctx->pix_fmt == AV_PIX_FMT_NV12) {
                 memcpy(data, frame->data[0], s->width * s->height);
@@ -179,10 +164,6 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
             offset += size;
 
             int64_t pts_us = frame->pts * av_q2d(avctx->time_base) * 1000 * 1000;
-
-            av_log(avctx, AV_LOG_DEBUG, "[e][log][I] pts=%"PRIi64" pts_us=%"PRIi64" "
-                    "size=%d frame_size=%d ..\n",
-                    frame->pts, pts_us, size, frame_size);
 
             status = ff_AMediaCodec_queueInputBuffer(codec, index, 0, size, pts_us, 0);
 
@@ -214,24 +195,6 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
     }
 
     index = ff_AMediaCodec_dequeueOutputBuffer(codec, &info, output_dequeue_timeout_us);
-
-    av_log(avctx, AV_LOG_DEBUG, "[e][log][O]Got encoded output buffer(%d)"
-            " offset=%" PRIi32 " size=%" PRIi32 " ts=%" PRIi64" flags=%" PRIu32 " ..\n",
-            index, info.offset, info.size,
-            info.presentationTimeUs, info.flags);
-
-    /*
-    if (info.flags & ff_AMediaCodec_getBufferFlagCodecConfig(codec)) {
-        av_log(avctx, AV_LOG_ERROR, "[e]codec config.\n");
-        status = ff_AMediaCodec_releaseOutputBuffer(codec, index, 0);
-        if (status < 0) {
-            av_log(avctx, AV_LOG_ERROR, "Failed to release output buffer\n");
-            return AVERROR_EXTERNAL;
-        }
-
-        return offset;
-    }
-    */
 
     if (index >= 0) {
         int ret;
@@ -292,18 +255,6 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
                 memcpy(pkt->data + s->extradata_size, data, info.size);
 
                 size += s->extradata_size;
-
-                // desc
-                av_log(avctx, AV_LOG_DEBUG, "[e][log][G] pts=%"PRId64" size=%d data  ",
-                        frame->pts, s->extradata_size);
-
-                int j;
-                for (j = 0; j < s->extradata_size; j++) {
-                    av_log(NULL, AV_LOG_DEBUG, "%d  ", s->extradata[j]);
-                }
-
-                av_log(avctx, AV_LOG_DEBUG, "[end]  \n");
-                // desc
 
             } else {
                 memcpy(pkt->data, data, info.size);

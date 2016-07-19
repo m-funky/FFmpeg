@@ -28,9 +28,6 @@
 
 #define CODEC_MIME "video/avc"
 
-static int frame_num = 0;
-static int packet_num = 0;
-
 typedef struct MediaCodecH264EncContext {
 
     MediaCodecEncContext ctx;
@@ -52,9 +49,6 @@ static av_cold int mediacodec_encode_close(AVCodecContext *avctx)
 
 static av_cold int mediacodec_encode_init(AVCodecContext *avctx)
 {
-    frame_num = 0;
-    packet_num = 0;
-
     int ret = 0;
 
     FFAMediaFormat *format = NULL;
@@ -110,20 +104,6 @@ done:
 static av_cold int mediacodec_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
     const AVFrame *frame, int *got_packet)
 {
-    frame_num++;
-
-    if (frame) {
-        int64_t pts_us = frame->pts * av_q2d(avctx->time_base) * 1000 * 1000;
-        av_log(avctx, AV_LOG_DEBUG,
-                "[e][log][F] %d format=%s key_frame=%d linesizes=(%d,%d,%d) pts=%"PRIi64" ..\n",
-                frame_num, av_get_pix_fmt_name(avctx->pix_fmt), frame->key_frame,
-                frame->linesize[0], frame->linesize[1], frame->linesize[2],
-                frame->pts);
-    } else {
-        av_log(avctx, AV_LOG_DEBUG,
-                "[e][log][F] %d format=%s ..\n",
-                frame_num, av_get_pix_fmt_name(avctx->pix_fmt));
-    }
 
     MediaCodecH264EncContext *s = avctx->priv_data;
     MediaCodecEncContext *ctx = &s->ctx;
@@ -139,31 +119,6 @@ static av_cold int mediacodec_encode_frame(AVCodecContext *avctx, AVPacket *avpk
         frame_size = 0;
     }
 
-
-    /*
-    for (i = 0; i < 2; i++) {
-        int height;
-        int width;
-
-        if (i == 0) {
-            height = 640;
-            width = 640;
-        } else {
-            height = 640 / 2;
-            width = 640;
-        }
-
-        memcpy(avpkt->data + offset, frame->data[i], height * width);
-        av_log(avctx, AV_LOG_DEBUG,
-                "[e][log][M] format=%s size=%d pts=%"PRId64" src= %"PRIu8" dst=%"PRIu8" ..\n" ,
-                av_get_pix_fmt_name(avctx->pix_fmt),
-                height * width, frame->pts, frame->data[i], avpkt->data + offset);
-
-        offset += height * width;
-    }
-    */
-
-
     if (av_fifo_space(s->fifo) < sizeof(frame_size)) {
         ret = av_fifo_realloc2(s->fifo,
                 av_fifo_size(s->fifo) + sizeof(frame_size));
@@ -172,31 +127,6 @@ static av_cold int mediacodec_encode_frame(AVCodecContext *avctx, AVPacket *avpk
             return ret;
         }
     }
-
-    //av_fifo_generic_write(s->fifo, frame->data[0], 640 * 640, NULL);
-    //av_fifo_generic_write(s->fifo, frame->data[1], 640 * 640 / 2, NULL);
-
-    /*
-    av_log(avctx, AV_LOG_DEBUG,
-            "[e][log][B] format=%s fifo.size=%d fifo.space=%d pts=%"PRId64" ..\n" ,
-            av_get_pix_fmt_name(avctx->pix_fmt),
-            av_fifo_size(s->fifo), av_fifo_space(s->fifo), frame->pts);
-            */
-
-    /*
-    if ((ret = ff_alloc_packet2(avctx, avpkt, frame_size, frame_size))) {
-        av_log(avctx, AV_LOG_ERROR, "Error getting output packet\n");
-        return ret;
-    } else {
-        av_log(avctx, AV_LOG_DEBUG, "Success getting output packet\n");
-    }
-    */
-
-
-    //memcpy(avpkt->data, frame->data[0], 640 * 640);
-    //memcpy(avpkt->data + 640 * 640, frame->data[1], 640 * 640 / 2);
-
-    //av_fifo_generic_read(s->fifo, avpkt->data, frame_size, NULL);
 
     while (!*got_packet) {
         if (offset >= frame_size) {
@@ -215,20 +145,7 @@ static av_cold int mediacodec_encode_frame(AVCodecContext *avctx, AVPacket *avpk
 
         offset += ret;
 
-        /*
-        av_log(avctx, AV_LOG_DEBUG,
-                "[e][log][A] format=%s packet=%d pts=%"PRId64" size=%d ..\n",
-                av_get_pix_fmt_name(avctx->pix_fmt), *got_packet, frame->pts, offset);
-                */
-
     }
-
-    packet_num++;
-
-    av_log(avctx, AV_LOG_DEBUG,
-            "[e][log][P] %d format=%s size=%d pts=%"PRId64" dts=%"PRId64" flags=%d ..\n" ,
-            packet_num, av_get_pix_fmt_name(avctx->pix_fmt),
-            avpkt->size, avpkt->pts, avpkt->dts, avpkt->flags);
 
     return 0;
 }
