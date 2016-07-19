@@ -128,6 +128,14 @@ void ff_mediacodec_sw_buffer_copy_yuv420_planar(AVCodecContext *avctx,
     }
 }
 
+void ff_mediacodec_sw_frame_copy_yuv420_planar(AVCodecContext *avctx,
+                                                MediaCodecEncContext *s,
+                                                uint8_t *data,
+                                                size_t size,
+                                                AVFrame *frame)
+{
+}
+
 void ff_mediacodec_sw_buffer_copy_yuv420_semi_planar(AVCodecContext *avctx,
                                                      MediaCodecDecContext *s,
                                                      uint8_t *data,
@@ -138,7 +146,19 @@ void ff_mediacodec_sw_buffer_copy_yuv420_semi_planar(AVCodecContext *avctx,
     int i;
     uint8_t *src = NULL;
 
+    /*
+    av_log(avctx, AV_LOG_DEBUG, "Start to swap buffer(YUV420SemiPlanar)\n");
+    av_log(avctx, AV_LOG_DEBUG, "YUV420SemiPlanar crop top(%d),bottom(%d),left(%d),right(%d)\n",
+          s->crop_top, s->crop_bottom, s->crop_left, s->crop_right);
+    av_log(avctx, AV_LOG_DEBUG, "YUV420SemiPlanar stride(%d),slice height(%d)\n",
+            s->stride, s->slice_height);
+    av_log(avctx, AV_LOG_DEBUG, "YUV420SemiPlanar width(%d),height(%d)\n",
+            avctx->width, avctx->height);
+            */
+
     for (i = 0; i < 2; i++) {
+        //av_log(avctx, AV_LOG_DEBUG, "YUV420SemiPlanar (%d) linesize(%d)\n",
+        //        i, frame->linesize[i]);
         int height;
 
         src = data + info->offset;
@@ -173,6 +193,45 @@ void ff_mediacodec_sw_buffer_copy_yuv420_semi_planar(AVCodecContext *avctx,
                 dst += frame->linesize[i];
             }
         }
+    }
+}
+
+
+void ff_mediacodec_sw_frame_copy_yuv420_semi_planar(AVCodecContext *avctx,
+                                                     MediaCodecEncContext *s,
+                                                     uint8_t *data,
+                                                     size_t size,
+                                                     AVFrame *frame)
+{
+    // copy frame to data
+    int i;
+    uint8_t *dst = NULL;
+
+    /*
+    av_log(avctx, AV_LOG_DEBUG, "Start to swap buffer(YUV420SemiPlanar)\n");
+    av_log(avctx, AV_LOG_DEBUG, "YUV420SemiPlanar crop top(%d),bottom(%d),left(%d),right(%d)\n",
+          s->crop_top, s->crop_bottom, s->crop_left, s->crop_right);
+    av_log(avctx, AV_LOG_DEBUG, "YUV420SemiPlanar stride(%d),slice height(%d)\n",
+            s->stride, s->slice_height);
+    av_log(avctx, AV_LOG_DEBUG, "YUV420SemiPlanar width(%d),height(%d)\n",
+            avctx->width, avctx->height);
+            */
+
+    for (i = 0; i < 2; i++) {
+        //av_log(avctx, AV_LOG_DEBUG, "YUV420SemiPlanar (%d) linesize(%d)\n",
+        //        i, frame->linesize[i]);
+        int height;
+
+        if (i == 0) {
+            height = avctx->height;
+        } else if (i == 1) {
+            height = avctx->height / 2;
+
+            dst += avctx->height * avctx->width;
+        }
+
+        memcpy(dst, frame->data[i], height * avctx->width);
+        size += height * avctx->width;
     }
 }
 

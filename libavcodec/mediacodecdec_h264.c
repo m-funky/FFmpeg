@@ -29,6 +29,7 @@
 #include "libavutil/intreadwrite.h"
 #include "libavutil/pixfmt.h"
 #include "libavutil/atomic.h"
+#include "libavutil/pixdesc.h"
 
 #include "avcodec.h"
 #include "internal.h"
@@ -36,6 +37,9 @@
 #include "mediacodec_wrapper.h"
 
 #define CODEC_MIME "video/avc"
+
+static int packet_num = 0;
+static int frame_num = 0;
 
 typedef struct MediaCodecH264DecContext {
 
@@ -164,6 +168,9 @@ static av_cold int mediacodec_decode_close(AVCodecContext *avctx)
 
 static av_cold int mediacodec_decode_init(AVCodecContext *avctx)
 {
+    packet_num = 0;
+    frame_num = 0;
+
     int ret;
     FFAMediaFormat *format = NULL;
     MediaCodecH264DecContext *s = avctx->priv_data;
@@ -203,7 +210,7 @@ static av_cold int mediacodec_decode_init(AVCodecContext *avctx)
         goto done;
     }
 
-    av_log(avctx, AV_LOG_INFO, "MediaCodec started successfully, ret = %d\n", ret);
+    av_log(avctx, AV_LOG_INFO, "MediaCodec decoder started successfully, ret = %d\n", ret);
 
     s->fifo = av_fifo_alloc(sizeof(AVPacket));
     if (!s->fifo) {
@@ -240,6 +247,14 @@ static int mediacodec_process_data(AVCodecContext *avctx, AVFrame *frame,
 static int mediacodec_decode_frame(AVCodecContext *avctx, void *data,
                                    int *got_frame, AVPacket *avpkt)
 {
+    packet_num++;
+
+    /*
+    av_log(avctx, AV_LOG_DEBUG,
+            "[d][log][P] %d format=%s size=%d pts=%"PRIi64" ..\n" ,
+            packet_num, av_get_pix_fmt_name(avctx->pix_fmt), avpkt->size, avpkt->pts);
+            */
+
     MediaCodecH264DecContext *s = avctx->priv_data;
     AVFrame *frame    = data;
     int ret;
@@ -263,6 +278,12 @@ static int mediacodec_decode_frame(AVCodecContext *avctx, void *data,
 
     /* process buffered data */
     while (!*got_frame) {
+        /*
+        av_log(avctx, AV_LOG_DEBUG,
+                "[d][log][B] format=%s frame=%d size=%d filtered_pkt.size=%d pts=%"PRId64" ..\n",
+                av_get_pix_fmt_name(avctx->pix_fmt), *got_frame,
+                ret, s->filtered_pkt.size, avpkt->pts);
+                */
         /* prepare the input data -- convert to Annex B if needed */
         if (s->filtered_pkt.size <= 0) {
             int size;
@@ -297,7 +318,21 @@ static int mediacodec_decode_frame(AVCodecContext *avctx, void *data,
 
         s->filtered_pkt.size -= ret;
         s->filtered_pkt.data += ret;
+
+        /*
+        av_log(avctx, AV_LOG_DEBUG,
+                "[d][log][A] format=%s frame=%d size=%d filtered_pkt.size=%d pts=%"PRId64" ..\n",
+                av_get_pix_fmt_name(avctx->pix_fmt), *got_frame,
+                ret, s->filtered_pkt.size, avpkt->pts);
+                */
     }
+    frame_num++;
+    /*
+    av_log(avctx, AV_LOG_DEBUG,
+            "[d][log][F] %d format=%s linesizes=(%d,%d,%d) pts=%"PRIi64" ..\n",
+            frame_num, av_get_pix_fmt_name(avctx->pix_fmt),
+            frame->linesize[0], frame->linesize[1], frame->linesize[2], frame->pts);
+            */
 
     return avpkt->size;
 }
@@ -333,4 +368,5 @@ AVCodec ff_h264_mediacodec_decoder = {
     .flush          = mediacodec_decode_flush,
     .close          = mediacodec_decode_close,
     .capabilities   = CODEC_CAP_DELAY,
+    .caps_internal  = FF_CODEC_CAP_SETS_PKT_DTS,
 };
