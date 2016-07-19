@@ -28,13 +28,9 @@
 #include "libavutil/internal.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/mathematics.h"
-#include "libavutil/pixdesc.h"
 
 #include "avcodec.h"
 #include "internal.h"
-
-static int frame_num = 0;
-static int packet_num = 0;
 
 typedef struct SVCContext {
     const AVClass *av_class;
@@ -110,9 +106,6 @@ static av_cold int svc_encode_close(AVCodecContext *avctx)
 
 static av_cold int svc_encode_init(AVCodecContext *avctx)
 {
-    frame_num = 0;
-    packet_num = 0;
-
     SVCContext *s = avctx->priv_data;
     SEncParamExt param = { 0 };
     int err = AVERROR_UNKNOWN;
@@ -157,7 +150,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
     param.fMaxFrameRate              = 1/av_q2d(avctx->time_base);
-
     param.iPicWidth                  = avctx->width;
     param.iPicHeight                 = avctx->height;
     param.iTargetBitrate             = avctx->bit_rate;
@@ -235,19 +227,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
         }
         avctx->extradata_size = size;
         memcpy(avctx->extradata, fbi.sLayerInfo[0].pBsBuf, size);
-
-        // desc
-        av_log(avctx, AV_LOG_DEBUG, "[e][log][G] extradata size=%d ..\n", size);
-        av_log(avctx, AV_LOG_DEBUG, "[e][log][G] extradata ");
-        int j;
-        for (j = 0; j < size; j++) {
-            av_log(NULL, AV_LOG_DEBUG, "%d  ", avctx->extradata[j]);
-        }
-        av_log(avctx, AV_LOG_DEBUG, "[end]\n");
-        // desc
-
-    } else {
-        av_log(avctx, AV_LOG_DEBUG, "[e][log][G] No global header ..\n");
     }
 
     props = ff_add_cpb_side_data(avctx);
@@ -268,14 +247,6 @@ fail:
 static int svc_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
                             const AVFrame *frame, int *got_packet)
 {
-
-    frame_num++;
-
-    av_log(avctx, AV_LOG_DEBUG,
-        "[e][log][F] %d format=%s linesizes=(%d,%d,%d) pts=%"PRId64" ..\n",
-        frame_num, av_get_pix_fmt_name(avctx->pix_fmt),
-        frame->linesize[0], frame->linesize[1], frame->linesize[2], frame->pts);
-
     SVCContext *s = avctx->priv_data;
     SFrameBSInfo fbi = { 0 };
     int i, ret;
@@ -330,14 +301,6 @@ static int svc_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
     if (fbi.eFrameType == videoFrameTypeIDR)
         avpkt->flags |= AV_PKT_FLAG_KEY;
     *got_packet = 1;
-
-    packet_num++;
-
-    av_log(avctx, AV_LOG_DEBUG,
-        "[e][log][P] %d format=%s size=%d pts=%"PRId64" dts=%"PRId64" flags=%d ..\n",
-        packet_num, av_get_pix_fmt_name(avctx->pix_fmt),
-        avpkt->size, avpkt->pts, avpkt->dts, avpkt->flags);
-
     return 0;
 }
 

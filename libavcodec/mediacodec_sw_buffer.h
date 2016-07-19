@@ -29,7 +29,6 @@
 
 #include "avcodec.h"
 #include "mediacodecdec.h"
-#include "mediacodecenc.h"
 #include "mediacodec_wrapper.h"
 
 void ff_mediacodec_sw_buffer_copy_yuv420_planar(AVCodecContext *avctx,
@@ -39,23 +38,11 @@ void ff_mediacodec_sw_buffer_copy_yuv420_planar(AVCodecContext *avctx,
                                                 FFAMediaCodecBufferInfo *info,
                                                 AVFrame *frame);
 
-void ff_mediacodec_sw_frame_copy_yuv420_planar(AVCodecContext *avctx,
-                                                MediaCodecEncContext *s,
-                                                uint8_t *data,
-                                                size_t size,
-                                                AVFrame *frame);
-
 void ff_mediacodec_sw_buffer_copy_yuv420_semi_planar(AVCodecContext *avctx,
                                                      MediaCodecDecContext *s,
                                                      uint8_t *data,
                                                      size_t size,
                                                      FFAMediaCodecBufferInfo *info,
-                                                     AVFrame *frame);
-
-void ff_mediacodec_sw_frame_copy_yuv420_semi_planar(AVCodecContext *avctx,
-                                                     MediaCodecEncContext *s,
-                                                     uint8_t *data,
-                                                     size_t size,
                                                      AVFrame *frame);
 
 void ff_mediacodec_sw_buffer_copy_yuv420_packed_semi_planar(AVCodecContext *avctx,

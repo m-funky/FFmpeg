@@ -29,7 +29,6 @@
 #include "libavutil/pixfmt.h"
 #include "libavutil/time.h"
 #include "libavutil/timestamp.h"
-#include "libavutil/pixdesc.h"
 
 #include "avcodec.h"
 #include "internal.h"
@@ -164,16 +163,6 @@ static int mediacodec_wrap_buffer(AVCodecContext *avctx,
      *   * 0-sized avpackets are pushed to flush remaining frames at EOS */
     frame->pkt_pts = info->presentationTimeUs;
     frame->pkt_dts = AV_NOPTS_VALUE;
-
-    /*
-    av_log(avctx, AV_LOG_DEBUG,
-            "Frame: width=%d stride=%d height=%d slice-height=%d "
-            "crop-top=%d crop-bottom=%d crop-left=%d crop-right=%d encoder=%s\n"
-            "destination linesizes=%d,%d,%d\n" ,
-            avctx->width, s->stride, avctx->height, s->slice_height,
-            s->crop_top, s->crop_bottom, s->crop_left, s->crop_right, s->codec_name,
-            frame->linesize[0], frame->linesize[1], frame->linesize[2]);
-            */
 
     switch (s->color_format) {
     case COLOR_FormatYUV420Planar:
@@ -422,23 +411,10 @@ int ff_mediacodec_dec_decode(AVCodecContext *avctx, MediaCodecDecContext *s,
             return AVERROR_EXTERNAL;
         }
 
-        /*
-        av_log(avctx, AV_LOG_DEBUG,
-                "ff_mediacodec_dec_decode offset(%d),packet size(%d),input buffer size(%d)\n",
-                offset, pkt->size, size);
-                */
-
         if (need_flushing) {
             uint32_t flags = ff_AMediaCodec_getBufferFlagEndOfStream(codec);
 
             av_log(avctx, AV_LOG_DEBUG, "Sending End Of Stream signal\n");
-
-            /*
-            av_log(avctx, AV_LOG_DEBUG,
-                    "[d][log][I] format=%s size=%d pts=%"PRId64" data=%"PRIu8" ..\n" ,
-                    av_get_pix_fmt_name(avctx->pix_fmt),
-                    0, pkt->pts, data);
-                    */
 
             status = ff_AMediaCodec_queueInputBuffer(codec, index, 0, 0, pkt->pts, flags);
             if (status < 0) {
@@ -450,13 +426,6 @@ int ff_mediacodec_dec_decode(AVCodecContext *avctx, MediaCodecDecContext *s,
             break;
         } else {
             size = FFMIN(pkt->size - offset, size);
-
-            /*
-            av_log(avctx, AV_LOG_DEBUG,
-                    "[d][log][I] format=%s size=%d pts=%"PRId64" data=%"PRIu8" ..\n" ,
-                    av_get_pix_fmt_name(avctx->pix_fmt),
-                    size, pkt->pts, data);
-                    */
 
             memcpy(data, pkt->data + offset, size);
             offset += size;
@@ -492,27 +461,11 @@ int ff_mediacodec_dec_decode(AVCodecContext *avctx, MediaCodecDecContext *s,
             av_log(avctx, AV_LOG_DEBUG, "Got first buffer after %fms\n", (av_gettime() - s->first_buffer_at) / 1000);
         }
 
-
-        /*
-        av_log(avctx, AV_LOG_DEBUG, "Got output buffer %zd"
-                " offset=%" PRIi32 " size=%" PRIi32 " ts=%" PRIi64
-                " flags=%" PRIu32 "\n", index, info.offset, info.size,
-                info.presentationTimeUs, info.flags);
-                */
-
         data = ff_AMediaCodec_getOutputBuffer(codec, index, &size);
         if (!data) {
             av_log(avctx, AV_LOG_ERROR, "Failed to get output buffer\n");
             return AVERROR_EXTERNAL;
         }
-
-        /*
-        av_log(avctx, AV_LOG_DEBUG,
-                "[d][log][O] format=%s size=%d info.size=%"PRIi32" pts=%"PRIi64" data=%"PRIu8" ..\n" ,
-                av_get_pix_fmt_name(avctx->pix_fmt),
-                size, info.size, info.presentationTimeUs, data);
-                */
-
 
         if ((ret = mediacodec_wrap_buffer(avctx, s, data, size, index, &info, frame)) < 0) {
             av_log(avctx, AV_LOG_ERROR, "Failed to wrap MediaCodec buffer\n");
