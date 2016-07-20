@@ -176,8 +176,6 @@ void ff_mediacodec_sw_buffer_copy_yuv420_semi_planar(AVCodecContext *avctx,
     }
 }
 
-
-
 void ff_mediacodec_sw_buffer_copy_yuv420_packed_semi_planar(AVCodecContext *avctx,
                                                             MediaCodecDecContext *s,
                                                             uint8_t *data,

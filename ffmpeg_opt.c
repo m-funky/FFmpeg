@@ -624,12 +624,9 @@ static AVCodec *choose_decoder(OptionsContext *o, AVFormatContext *s, AVStream *
     if (codec_name) {
         AVCodec *codec = find_codec_or_die(codec_name, st->codec->codec_type, 0);
         st->codec->codec_id = codec->id;
-        av_log(NULL, AV_LOG_VERBOSE, "Choosed decoder name:(%s).\n", codec_name);
         return codec;
-    } else {
-        av_log(NULL, AV_LOG_VERBOSE, "Choosed decoder codec id:(%d).\n", st->codec->codec_id);
+    } else
         return avcodec_find_decoder(st->codec->codec_id);
-    }
 }
 
 /* Add all the streams from the given input file to the global

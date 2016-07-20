@@ -162,14 +162,7 @@ static int mediacodec_wrap_buffer(AVCodecContext *avctx,
      *   * N avpackets can be pushed before 1 frame is actually returned
      *   * 0-sized avpackets are pushed to flush remaining frames at EOS */
     frame->pkt_pts = info->presentationTimeUs;
-
-    av_log(avctx, AV_LOG_DEBUG,
-            "Frame: width=%d stride=%d height=%d slice-height=%d "
-            "crop-top=%d crop-bottom=%d crop-left=%d crop-right=%d encoder=%s\n"
-            "destination linesizes=%d,%d,%d\n" ,
-            avctx->width, s->stride, avctx->height, s->slice_height,
-            s->crop_top, s->crop_bottom, s->crop_left, s->crop_right, s->codec_name,
-            frame->linesize[0], frame->linesize[1], frame->linesize[2]);
+    frame->pkt_dts = AV_NOPTS_VALUE;
 
     switch (s->color_format) {
     case COLOR_FormatYUV420Planar:
@@ -198,7 +191,7 @@ static int mediacodec_wrap_buffer(AVCodecContext *avctx,
 done:
     status = ff_AMediaCodec_releaseOutputBuffer(s->codec, index, 0);
     if (status < 0) {
-        av_log(NULL, AV_LOG_ERROR, "Failed to release output buffer\n");
+        av_log(avctx, AV_LOG_ERROR, "Failed to release output buffer\n");
         ret = AVERROR_EXTERNAL;
     }
 
@@ -308,10 +301,16 @@ int ff_mediacodec_dec_init(AVCodecContext *avctx, MediaCodecDecContext *s,
 {
     int ret = 0;
     int status;
+    int profile;
 
     s->first_buffer_at = av_gettime();
 
-    s->codec_name = ff_AMediaCodecList_getCodecNameByType(mime, avctx->width, avctx->height, avctx);
+    profile = ff_AMediaCodecProfile_getProfileFromAVCodecContext(avctx);
+    if (profile < 0) {
+        av_log(avctx, AV_LOG_WARNING, "Unsupported or unknown profile");
+    }
+
+    s->codec_name = ff_AMediaCodecList_getCodecNameByType(mime, profile, 0, avctx);
     if (!s->codec_name) {
         ret = AVERROR_EXTERNAL;
         goto fail;
@@ -357,7 +356,7 @@ int ff_mediacodec_dec_init(AVCodecContext *avctx, MediaCodecDecContext *s,
         }
     }
 
-    av_log(avctx, AV_LOG_DEBUG, "MediaCodec %p started successfully\n", s->codec);
+    av_log(avctx, AV_LOG_DEBUG, "MediaCodec decoder %p started successfully\n", s->codec);
 
     return 0;
 
@@ -462,11 +461,6 @@ int ff_mediacodec_dec_decode(AVCodecContext *avctx, MediaCodecDecContext *s,
             av_log(avctx, AV_LOG_DEBUG, "Got first buffer after %fms\n", (av_gettime() - s->first_buffer_at) / 1000);
         }
 
-        av_log(avctx, AV_LOG_DEBUG, "Got output buffer %zd"
-                " offset=%" PRIi32 " size=%" PRIi32 " ts=%" PRIi64
-                " flags=%" PRIu32 "\n", index, info.offset, info.size,
-                info.presentationTimeUs, info.flags);
-
         data = ff_AMediaCodec_getOutputBuffer(codec, index, &size);
         if (!data) {
             av_log(avctx, AV_LOG_ERROR, "Failed to get output buffer\n");
@@ -539,7 +533,7 @@ int ff_mediacodec_dec_flush(AVCodecContext *avctx, MediaCodecDecContext *s)
 
     status = ff_AMediaCodec_flush(codec);
     if (status < 0) {
-        av_log(NULL, AV_LOG_ERROR, "Failed to flush MediaCodec %p", codec);
+        av_log(avctx, AV_LOG_ERROR, "Failed to flush codec\n");
         return AVERROR_EXTERNAL;
     }
 

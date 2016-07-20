@@ -203,7 +203,7 @@ static av_cold int mediacodec_decode_init(AVCodecContext *avctx)
         goto done;
     }
 
-    av_log(avctx, AV_LOG_INFO, "MediaCodec started successfully, ret = %d\n", ret);
+    av_log(avctx, AV_LOG_INFO, "MediaCodec decoder started successfully, ret = %d\n", ret);
 
     s->fifo = av_fifo_alloc(sizeof(AVPacket));
     if (!s->fifo) {
@@ -333,4 +333,5 @@ AVCodec ff_h264_mediacodec_decoder = {
     .flush          = mediacodec_decode_flush,
     .close          = mediacodec_decode_close,
     .capabilities   = CODEC_CAP_DELAY,
+    .caps_internal  = FF_CODEC_CAP_SETS_PKT_DTS,
 };
