@@ -76,7 +76,7 @@ static av_cold int mediacodec_encode_init(AVCodecContext *avctx)
     ff_AMediaFormat_setInt32(format, "color-format", ctx->color_format);
     ff_AMediaFormat_setInt32(format, "bitrate", ctx->bit_rate);
     ff_AMediaFormat_setInt32(format, "frame-rate", 1 / av_q2d(avctx->time_base));
-    ff_AMediaFormat_setInt32(format, "i-frame-interval", 12); // same as openh264 default.
+    ff_AMediaFormat_setInt32(format, "i-frame-interval", 1); // interval value is 1 sec.
 
     if ((ret = ff_mediacodec_enc_init(avctx, &s->ctx, CODEC_MIME, format)) < 0) {
         goto done;
