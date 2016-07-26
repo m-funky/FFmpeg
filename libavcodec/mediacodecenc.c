@@ -98,7 +98,6 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
 {
     int ret = 0;
     int offset = 0;
-    int need_flushing = 0;
 
     int status = 0;
 
@@ -137,9 +136,13 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
         if (frame_size != 0) {
             size = FFMIN(frame_size - offset, size);
 
+            // nv12 (YYYYYYYYYYYYYYYYUVUVUVUVUVUVUV)
+            // frame[0] is Y data, frame[1] is UV data, frame[2] is no data.
             if (avctx->pix_fmt == AV_PIX_FMT_NV12) {
                 memcpy(data, frame->data[0], s->width * s->height);
                 memcpy(data + s->width * s->height, frame->data[1], s->width * s->height / 2);
+            // yuv420p (YYYYYYYYYYYYYYYYUUUUUUUUVVVVVVVV)
+            // frame[0] is Y data, frame[1] is U data, frame[2] is V data.
             } else if (avctx->pix_fmt == AV_PIX_FMT_YUV420P) {
                 memcpy(data, frame->data[0], s->width * s->height);
                 int i;
@@ -155,13 +158,14 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
 
             offset += size;
 
+            // frame pts is natural number, but encoder info pts is real time(usec).
             int64_t pts_us = frame->pts * av_q2d(avctx->time_base) * 1000 * 1000;
 
             status = ff_AMediaCodec_queueInputBuffer(codec, index, 0, size, pts_us, 0);
 
             if (status < 0) {
                 av_log(avctx, AV_LOG_ERROR,
-                        "[e]Failed to queue input buffer (status = %d)\n", status);
+                        "Failed to queue input buffer (status = %d)\n", status);
                 return AVERROR_EXTERNAL;
             }
 
@@ -193,7 +197,6 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
             return AVERROR_EXTERNAL;
         }
 
-
         // copy data(DirectByteBuffer) -> AVPacket
 
         if ((ret = ff_alloc_packet2(avctx, pkt, info.size, info.size))) {
@@ -203,6 +206,10 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
 
         if (info.size > 0) {
             if (info.flags & ff_AMediaCodec_getBufferFlagCodecConfig(codec)) {
+
+                // If encode info flag is codec config flag,
+                // encoder output buffer is header data, not video stream unit data.
+
                 av_log(avctx, AV_LOG_ERROR, "codec config\n");
 
                 s->extradata = av_mallocz(info.size + AV_INPUT_BUFFER_PADDING_SIZE);
@@ -224,6 +231,10 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
                 }
 
                 if (avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER) {
+
+                    // If file foramt have global header,
+                    // header data is copied to codec extradata.
+
                     avctx->extradata = av_mallocz(s->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
                     if (!avctx->extradata) {
                         return AVERROR(ENOMEM);
@@ -233,12 +244,19 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
 
                     av_log(avctx, AV_LOG_DEBUG, "Success to memcpy global header\n");
                 }
+
                 return offset;
             }
 
             int size = info.size;
+
             if (!s->first_buffer++ && !(avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER)) {
+
+                // If file foramt not have global header,
+                // header data is set in first video stream unit.
+
                 av_log(avctx, AV_LOG_DEBUG, "Got first buffer\n");
+
                 memcpy(pkt->data, s->extradata, s->extradata_size);
                 memcpy(pkt->data + s->extradata_size, data, info.size);
 
@@ -248,9 +266,10 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
                 memcpy(pkt->data, data, info.size);
             }
 
+            // Packet pts is natural number, but encoder info pts is real time(usec).
             int64_t pkt_pts = round((double)info.presentationTimeUs / av_q2d(avctx->time_base) / 1000.0 / 1000.0);
 
-            // set I-frame flag to packet
+            // Set I-frame flag to packet
             if (info.flags & ff_AMediaCodec_getBufferFlagKeyFrame(codec)) {
                 pkt->flags |= AV_PKT_FLAG_KEY;
             }
@@ -303,7 +322,6 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
         av_log(avctx, AV_LOG_ERROR, "Failed to dequeue output buffer (status=%zd)\n", index);
         return AVERROR_EXTERNAL;
     }
-
 
     return offset;
 }
