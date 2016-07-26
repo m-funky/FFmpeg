@@ -23,7 +23,6 @@
 
 #include "libavutil/common.h"
 #include "libavutil/mem.h"
-#include "libavutil/fifo.h"
 #include "libavutil/log.h"
 #include "libavutil/pixfmt.h"
 #include "libavutil/time.h"
@@ -173,10 +172,6 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
                 return AVERROR_EXTERNAL;
             }
 
-            s->queued_buffer_nb++;
-            if (s->queued_buffer_nb > s->queued_buffer_max) {
-                s->queued_buffer_max = s->queued_buffer_nb;
-            }
         } else {
             uint32_t flags = ff_AMediaCodec_getBufferFlagEndOfStream(codec);
 
@@ -272,9 +267,6 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
             pkt->dts = pkt_pts;
             *got_packet = 1;
 
-            s->queued_buffer_nb--;
-            s->dequeued_buffer_nb++;
-
         } else {
             pkt->size = 0;
             pkt->pts = AV_NOPTS_VALUE;
@@ -317,14 +309,7 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
         av_log(avctx, AV_LOG_DEBUG, "[e]Changed Output buffer(%d) ..\n", index);
         ff_AMediaCodec_cleanOutputBuffers(codec);
     } else if (ff_AMediaCodec_infoTryAgainLater(codec, index)) {
-        if (s->flushing) {
-            av_log(avctx, AV_LOG_ERROR,
-                    "[e]Failed to dequeue output buffer within %" PRIi64 "ms "
-                    "while flushing remaining frames, output will probably lack last %d frames\n",
-                    output_dequeue_timeout_us / 1000, s->queued_buffer_nb);
-        } else {
-            av_log(avctx, AV_LOG_DEBUG, "[e]No output buffer available, try again later\n");
-        }
+        av_log(avctx, AV_LOG_DEBUG, "[e]No output buffer available, try again later\n");
     } else {
         av_log(avctx, AV_LOG_ERROR, "[e]Failed to dequeue output buffer (status=%zd)\n", index);
         return AVERROR_EXTERNAL;

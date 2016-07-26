@@ -18,9 +18,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/fifo.h"
-#include "libavutil/pixdesc.h"
-
 #include "avcodec.h"
 #include "internal.h"
 #include "mediacodecenc.h"
@@ -32,8 +29,6 @@ typedef struct MediaCodecH264EncContext {
 
     MediaCodecEncContext ctx;
 
-    AVFifoBuffer *fifo;
-
 } MediaCodecH264EncContext;
 
 static av_cold int mediacodec_encode_close(AVCodecContext *avctx)
@@ -41,8 +36,6 @@ static av_cold int mediacodec_encode_close(AVCodecContext *avctx)
     MediaCodecH264EncContext *s = avctx->priv_data;
 
     ff_mediacodec_enc_close(avctx, &s->ctx);
-
-    av_fifo_free(s->fifo);
 
     return 0;
 }
@@ -84,12 +77,6 @@ static av_cold int mediacodec_encode_init(AVCodecContext *avctx)
 
     av_log(avctx, AV_LOG_INFO, "MediaCodec encoder started successfully, ret = %d\n", ret);
 
-    s->fifo = av_fifo_alloc(sizeof(AVPacket));
-    if (!s->fifo) {
-        ret = AVERROR(ENOMEM);
-        goto done;
-    }
-
 done:
     if (format) {
         ff_AMediaFormat_delete(format);
@@ -117,15 +104,6 @@ static av_cold int mediacodec_encode_frame(AVCodecContext *avctx, AVPacket *avpk
 
     if (!frame) {
         frame_size = 0;
-    }
-
-    if (av_fifo_space(s->fifo) < sizeof(frame_size)) {
-        ret = av_fifo_realloc2(s->fifo,
-                av_fifo_size(s->fifo) + sizeof(frame_size));
-        if (ret < 0) {
-            av_log(avctx, AV_LOG_ERROR, "Error getting fifo.\n");
-            return ret;
-        }
     }
 
     while (!*got_packet) {
