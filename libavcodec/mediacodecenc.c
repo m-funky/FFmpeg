@@ -124,20 +124,19 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
         index = ff_AMediaCodec_dequeueInputBuffer(codec, input_dequeue_timeout_us);
 
         if (ff_AMediaCodec_infoTryAgainLater(codec, index)) {
-            av_log(avctx, AV_LOG_ERROR, "[e]Try again to dequeue input buffer.\n");
+            av_log(avctx, AV_LOG_ERROR, "Try again to dequeue input buffer\n");
             break;
         }
 
         if (index < 0) {
-            av_log(avctx, AV_LOG_ERROR,
-                    "[e]Failed to dequeue input buffer (status=%zd)\n", index);
+            av_log(avctx, AV_LOG_ERROR, "Failed to dequeue input buffer (status=%zd)\n", index);
             return AVERROR_EXTERNAL;
         }
 
         // get DirectBufferAddress of InputBuffer
         data = ff_AMediaCodec_getInputBuffer(codec, index, &size);
         if (!data) {
-            av_log(avctx, AV_LOG_ERROR, "[e]Failed to get input buffer\n");
+            av_log(avctx, AV_LOG_ERROR, "Failed to get input buffer\n");
             return AVERROR_EXTERNAL;
         }
 
@@ -196,7 +195,7 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
 
         data = ff_AMediaCodec_getOutputBuffer(codec, index, &size);
         if (!data) {
-            av_log(avctx, AV_LOG_ERROR, "[e]Failed to get output buffer\n");
+            av_log(avctx, AV_LOG_ERROR, "Failed to get output buffer\n");
             return AVERROR_EXTERNAL;
         }
 
@@ -204,25 +203,25 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
         // copy data(DirectByteBuffer) -> AVPacket
 
         if ((ret = ff_alloc_packet2(avctx, pkt, info.size, info.size))) {
-            av_log(avctx, AV_LOG_ERROR, "[e]Error to get output packet size(%d).\n", info.size);
+            av_log(avctx, AV_LOG_ERROR, "Error to get output packet size(%d).\n", info.size);
             return ret;
         }
 
         if (info.size > 0) {
             if (info.flags & ff_AMediaCodec_getBufferFlagCodecConfig(codec)) {
-                av_log(avctx, AV_LOG_ERROR, "[e]codec config.\n");
+                av_log(avctx, AV_LOG_ERROR, "codec config\n");
 
                 s->extradata = av_mallocz(info.size + AV_INPUT_BUFFER_PADDING_SIZE);
                 if (!s->extradata) {
-                    av_log(avctx, AV_LOG_ERROR, "Failed to alloc extradata.\n");
+                    av_log(avctx, AV_LOG_ERROR, "Failed to alloc extradata\n");
                     return AVERROR_EXTERNAL;
                 } else {
-                    av_log(avctx, AV_LOG_DEBUG, "Success to alloc extradata.\n");
+                    av_log(avctx, AV_LOG_DEBUG, "Success to alloc extradata\n");
                 }
                 s->extradata_size = info.size;
                 memcpy(s->extradata, data, s->extradata_size);
 
-                av_log(avctx, AV_LOG_DEBUG, "Success to memcpy extradata.\n");
+                av_log(avctx, AV_LOG_DEBUG, "Success to memcpy extradata\n");
 
                 status = ff_AMediaCodec_releaseOutputBuffer(codec, index, 0);
                 if (status < 0) {
@@ -238,14 +237,14 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
                     avctx->extradata_size = s->extradata_size;
                     memcpy(avctx->extradata, data, s->extradata_size);
 
-                    av_log(avctx, AV_LOG_DEBUG, "Success to memcpy global header.\n");
+                    av_log(avctx, AV_LOG_DEBUG, "Success to memcpy global header\n");
                 }
                 return offset;
             }
 
             int size = info.size;
             if (!s->first_buffer++ && !(avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER)) {
-                av_log(avctx, AV_LOG_DEBUG, "[e]Got first buffer.\n");
+                av_log(avctx, AV_LOG_DEBUG, "Got first buffer\n");
                 memcpy(pkt->data, s->extradata, s->extradata_size);
                 memcpy(pkt->data + s->extradata_size, data, info.size);
 
@@ -257,8 +256,8 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
 
             int64_t pkt_pts = round((double)info.presentationTimeUs / av_q2d(avctx->time_base) / 1000.0 / 1000.0);
 
+            // set I-frame flag to packet
             if (info.flags & ff_AMediaCodec_getBufferFlagKeyFrame(codec)) {
-                av_log(avctx, AV_LOG_ERROR, "[e] Key frame.\n");
                 pkt->flags |= AV_PKT_FLAG_KEY;
             }
 
@@ -284,13 +283,13 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
         if (s->format) {
             status = ff_AMediaFormat_delete(s->format);
             if (status < 0) {
-                av_log(avctx, AV_LOG_ERROR, "[e]Failed to delete MediaFormat %p\n", s->format);
+                av_log(avctx, AV_LOG_ERROR, "Failed to delete MediaFormat %p\n", s->format);
             }
         }
 
         s->format = ff_AMediaCodec_getOutputFormat(codec);
         if (!s->format) {
-            av_log(avctx, AV_LOG_ERROR, "[e]Failed to get output format\n");
+            av_log(avctx, AV_LOG_ERROR, "Failed to get output format\n");
             return AVERROR_EXTERNAL;
         }
 
@@ -298,7 +297,7 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
         if (!format) {
             return AVERROR_EXTERNAL;
         }
-        av_log(avctx, AV_LOG_INFO, "[e]Output MediaFormat changed to %s\n", format);
+        av_log(avctx, AV_LOG_INFO, "Output MediaFormat changed to %s\n", format);
         av_freep(&format);
 
         if ((ret = mediacodec_enc_parse_format(avctx, s)) < 0) {
@@ -306,12 +305,12 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
         }
 
     } else if (ff_AMediaCodec_infoOutputBuffersChanged(codec, index)) {
-        av_log(avctx, AV_LOG_DEBUG, "[e]Changed Output buffer(%d) ..\n", index);
+        av_log(avctx, AV_LOG_DEBUG, "Changed Output buffer(%d) ..\n", index);
         ff_AMediaCodec_cleanOutputBuffers(codec);
     } else if (ff_AMediaCodec_infoTryAgainLater(codec, index)) {
-        av_log(avctx, AV_LOG_DEBUG, "[e]No output buffer available, try again later\n");
+        av_log(avctx, AV_LOG_DEBUG, "No output buffer available, try again later\n");
     } else {
-        av_log(avctx, AV_LOG_ERROR, "[e]Failed to dequeue output buffer (status=%zd)\n", index);
+        av_log(avctx, AV_LOG_ERROR, "Failed to dequeue output buffer (status=%zd)\n", index);
         return AVERROR_EXTERNAL;
     }
 
