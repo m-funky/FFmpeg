@@ -44,12 +44,6 @@ int ff_mediacodec_select_color_format(AVCodecContext *avctx, const char *mime)
     return ff_AMediaCodecList_getColorFormatByType(mime, NULL);
 }
 
-
-static int mediacodec_enc_parse_format(AVCodecContext *avctx, MediaCodecEncContext *s)
-{
-    return 0;
-}
-
 int ff_mediacodec_enc_init(AVCodecContext *avctx, MediaCodecEncContext *s,
                            const char *mime, FFAMediaFormat *format)
 {
@@ -299,10 +293,6 @@ int ff_mediacodec_enc_encode(AVCodecContext *avctx, MediaCodecEncContext *s,
         }
         av_log(avctx, AV_LOG_INFO, "Output MediaFormat changed to %s\n", format);
         av_freep(&format);
-
-        if ((ret = mediacodec_enc_parse_format(avctx, s)) < 0) {
-            return ret;
-        }
 
     } else if (ff_AMediaCodec_infoOutputBuffersChanged(codec, index)) {
         av_log(avctx, AV_LOG_DEBUG, "Changed Output buffer(%d) ..\n", index);
