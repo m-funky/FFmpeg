@@ -18,9 +18,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/fifo.h"
-#include "libavutil/pixdesc.h"
-
 #include "avcodec.h"
 #include "internal.h"
 #include "mediacodecenc.h"
@@ -32,8 +29,6 @@ typedef struct MediaCodecH264EncContext {
 
     MediaCodecEncContext ctx;
 
-    AVFifoBuffer *fifo;
-
 } MediaCodecH264EncContext;
 
 static av_cold int mediacodec_encode_close(AVCodecContext *avctx)
@@ -41,8 +36,6 @@ static av_cold int mediacodec_encode_close(AVCodecContext *avctx)
     MediaCodecH264EncContext *s = avctx->priv_data;
 
     ff_mediacodec_enc_close(avctx, &s->ctx);
-
-    av_fifo_free(s->fifo);
 
     return 0;
 }
@@ -68,8 +61,6 @@ static av_cold int mediacodec_encode_init(AVCodecContext *avctx)
     ctx->pix_fmt = avctx->pix_fmt;
     ctx->bit_rate = avctx->bit_rate;
 
-    av_log(avctx, AV_LOG_INFO, "MediaCodec encoder color format=%d  \n", ctx->color_format);
-
     ff_AMediaFormat_setString(format, "mime", CODEC_MIME);
     ff_AMediaFormat_setInt32(format, "width", ctx->width);
     ff_AMediaFormat_setInt32(format, "height", ctx->height);
@@ -83,12 +74,6 @@ static av_cold int mediacodec_encode_init(AVCodecContext *avctx)
     }
 
     av_log(avctx, AV_LOG_INFO, "MediaCodec encoder started successfully, ret = %d\n", ret);
-
-    s->fifo = av_fifo_alloc(sizeof(AVPacket));
-    if (!s->fifo) {
-        ret = AVERROR(ENOMEM);
-        goto done;
-    }
 
 done:
     if (format) {
@@ -110,8 +95,7 @@ static av_cold int mediacodec_encode_frame(AVCodecContext *avctx, AVPacket *avpk
 
     int ret = 0;
 
-    // tmp for nv12
-
+    // for yuv420p and nv12
     int frame_size = ctx->width * ctx->height + ctx->width * ctx->height / 2;
     int offset = 0;
 
@@ -119,18 +103,10 @@ static av_cold int mediacodec_encode_frame(AVCodecContext *avctx, AVPacket *avpk
         frame_size = 0;
     }
 
-    if (av_fifo_space(s->fifo) < sizeof(frame_size)) {
-        ret = av_fifo_realloc2(s->fifo,
-                av_fifo_size(s->fifo) + sizeof(frame_size));
-        if (ret < 0) {
-            av_log(avctx, AV_LOG_ERROR, "Error getting fifo.\n");
-            return ret;
-        }
-    }
-
     while (!*got_packet) {
         if (offset >= frame_size) {
             if (frame_size == 0) {
+                // End of stream
                 ff_mediacodec_enc_encode(avctx, ctx, avpkt, frame, got_packet, 0);
             }
             return 0;
@@ -139,7 +115,7 @@ static av_cold int mediacodec_encode_frame(AVCodecContext *avctx, AVPacket *avpk
         ret = ff_mediacodec_enc_encode(avctx, ctx, avpkt, frame, got_packet, frame_size);
 
         if (ret < 0) {
-            av_log(avctx, AV_LOG_ERROR, "Failed to encode. \n");
+            av_log(avctx, AV_LOG_ERROR, "Failed to encode\n");
             return ret;
         }
 
